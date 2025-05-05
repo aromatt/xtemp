@@ -1,0 +1,18 @@
+[package]
+name = "xtemp"
+authors = ["Andrew Matteson <andrewkmatteson@gmail.com>"]
+version = "0.1.0"
+description = "Like `xargs`, but for utilities like `md5sum` and `wc` which can't process multiple inputs separately unless they are provided as files."
+homepage = "https://github.com/aromatt/xtemp"
+repository = "https://github.com/aromatt/xtemp"
+edition = "2021"
+
+[dependencies]
+clap = { version = "4", features = ["derive", "wrap_help"] }
+shell-escape = "0.1"
+tempfile = "3"
+
+[profile.release]
+lto = true
+codegen-units = 1
+strip = true
