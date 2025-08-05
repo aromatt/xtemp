@@ -69,16 +69,16 @@ In practice, using `xtemp` instead of a process per line is much faster:
 $ < /dev/urandom tr -dc '0-9a-z' | fold -w 10 | head -10000 > sample.10k.txt
 
 # Using xtemp
-$ time xtemp -n100 md5sum < sample.10k.txt >/dev/null
+$ time xtemp md5sum < sample.10k.txt >/dev/null
 
-real    0m0.958s
-user    0m0.191s
-sys     0m0.680s
+real    0m0.928s
+user    0m0.165s
+sys     0m0.676s
 
-# Using a process-per-line
+# Spawning a process per line
 $ time sh -c 'while read line; do echo "$line" | md5sum; done' < sample.10k.txt >/dev/null
 
-real    0m13.013s
-user    0m9.266s
-sys     0m3.516s
+real    0m12.828s
+user    0m9.306s
+sys     0m3.309s
 ```

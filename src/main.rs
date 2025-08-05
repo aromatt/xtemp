@@ -6,6 +6,7 @@ use shell_escape::escape;
 use std::io::{self, BufRead, BufReader, Write, Seek, SeekFrom};
 use std::process::Command;
 use tempfile::NamedTempFile;
+use nix::sys::resource::{getrlimit, Resource};
 
 #[derive(Parser, Debug)]
 #[command(author, version, about)]
@@ -45,14 +46,11 @@ impl fmt::Display for XtempError {
 
 pub type Result<T> = std::result::Result<T, XtempError>;
 
-fn run(args: Args) -> Result<()> {
-    if args.command.is_empty() {
-        return Err(XtempError::MissingCommand);
+fn get_max_open_files() -> usize {
+    match getrlimit(Resource::RLIMIT_NOFILE) {
+        Ok((soft, _hard)) => soft as usize,
+        Err(_) => 1024, // fallback
     }
-
-    let batch_size = args.batch_size.unwrap_or(1);
-
-    run_batch_mode(batch_size, args.replstr.as_deref(), &args.command)
 }
 
 fn main() {
@@ -69,7 +67,17 @@ fn main() {
 
 }
 
-fn run_batch_mode(batch_size: usize, replstr: Option<&str>, command: &[String]) -> Result<()> {
+fn run(args: Args) -> Result<()> {
+    if args.command.is_empty() {
+        return Err(XtempError::MissingCommand);
+    }
+
+    let batch_size = args.batch_size.unwrap_or_else(|| {
+        // Default to a reasonable batch size based on open file limits, leaving some room for
+        // standard streams and other files
+        get_max_open_files().saturating_sub(32)
+    });
+
     let stdin = io::stdin();
     let lines: Vec<String> = stdin.lock().lines()
         .collect::<std::result::Result<_, _>>()
@@ -98,10 +106,10 @@ fn run_batch_mode(batch_size: usize, replstr: Option<&str>, command: &[String]) 
         // Build command with file arguments
         let mut cmd_args = Vec::new();
 
-        match replstr {
+        match &args.replstr {
             Some(replstr) => {
                 // Replace exact matches of replstr with space-separated temp file paths
-                for arg in command {
+                for arg in &args.command {
                     if arg == replstr {
                         let files_str = file_paths
                             .iter()
@@ -116,7 +124,7 @@ fn run_batch_mode(batch_size: usize, replstr: Option<&str>, command: &[String]) 
             }
             None => {
                 // Append file paths as trailing arguments
-                cmd_args.extend(command.iter().cloned());
+                cmd_args.extend(args.command.iter().cloned());
                 for path in &file_paths {
                     cmd_args.push(escape(path.to_string_lossy()).to_string());
                 }
