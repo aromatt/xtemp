@@ -1,0 +1,93 @@
+name: Build
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  release:
+    types: [ published ]
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build:
+    name: Build for ${{ matrix.target }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        job:
+          - { target: aarch64-unknown-linux-musl  , os: ubuntu-latest, dpkg_arch: arm64,            use-cross: true }
+          - { target: aarch64-unknown-linux-gnu   , os: ubuntu-latest, dpkg_arch: arm64,            use-cross: true }
+          - { target: arm-unknown-linux-gnueabihf , os: ubuntu-latest, dpkg_arch: armhf,            use-cross: true }
+          - { target: arm-unknown-linux-musleabihf, os: ubuntu-latest, dpkg_arch: musl-linux-armhf, use-cross: true }
+          - { target: i686-pc-windows-msvc        , os: windows-2019,                                               }
+          - { target: i686-unknown-linux-gnu      , os: ubuntu-latest, dpkg_arch: i686,             use-cross: true }
+          - { target: i686-unknown-linux-musl     , os: ubuntu-latest, dpkg_arch: musl-linux-i686,  use-cross: true }
+          - { target: x86_64-apple-darwin         , os: macos-13,                                                   }
+          - { target: aarch64-apple-darwin        , os: macos-14,                                                   }
+          - { target: x86_64-pc-windows-msvc      , os: windows-2019,                                               }
+          - { target: x86_64-unknown-linux-gnu    , os: ubuntu-latest, dpkg_arch: amd64,            use-cross: true }
+          - { target: x86_64-unknown-linux-musl   , os: ubuntu-latest, dpkg_arch: musl-linux-amd64, use-cross: true }
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Install Rust
+      uses: dtolnay/rust-toolchain@stable
+      with:
+        targets: ${{ matrix.target }}
+
+    - name: Install cross
+      if: matrix.use-cross
+      uses: taiki-e/install-action@v2
+      with:
+        tool: cross
+
+    - name: Cache cargo registry
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.cargo/registry
+          ~/.cargo/git
+          target
+        key: ${{ runner.os }}-cargo-${{ matrix.target }}-${{ hashFiles('**/Cargo.lock') }}
+
+    - name: Build
+      run: ${{ matrix.use-cross && 'cross' || 'cargo' }} build --release --target ${{ matrix.target }}
+
+    - name: Prepare artifact name
+      shell: bash
+      run: |
+        if [[ "${{ matrix.target }}" == *"windows"* ]]; then
+          echo "ARTIFACT_NAME=xtemp-${{ matrix.target }}.exe" >> $GITHUB_ENV
+          echo "BINARY_PATH=target/${{ matrix.target }}/release/xtemp.exe" >> $GITHUB_ENV
+        else
+          echo "ARTIFACT_NAME=xtemp-${{ matrix.target }}" >> $GITHUB_ENV
+          echo "BINARY_PATH=target/${{ matrix.target }}/release/xtemp" >> $GITHUB_ENV
+        fi
+
+    - name: Upload artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ env.ARTIFACT_NAME }}
+        path: ${{ env.BINARY_PATH }}
+
+  release:
+    name: Create Release
+    if: github.event_name == 'release'
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+    - name: Download all artifacts
+      uses: actions/download-artifact@v4
+      with:
+        path: artifacts
+
+    - name: Upload release assets
+      uses: softprops/action-gh-release@v1
+      with:
+        files: artifacts/*/xtemp*
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
