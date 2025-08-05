@@ -2,7 +2,7 @@
 name = "xtemp"
 authors = ["Andrew Matteson <andrewkmatteson@gmail.com>"]
 version = "0.1.0"
-description = "Like `xargs`, but for utilities like `md5sum` and `wc` which can't process multiple inputs separately unless they are provided as files."
+description = "xargs + tempfiles (for e.g. md5sum)"
 homepage = "https://github.com/aromatt/xtemp"
 repository = "https://github.com/aromatt/xtemp"
 edition = "2021"
