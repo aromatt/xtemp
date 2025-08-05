@@ -4,11 +4,11 @@ so that tools like `md5sum` can be used more efficiently in shell pipelines.
 
 ## Purpose
 Many Unix utilities operate naturally over streams of items (e.g. `sed`, `grep`). But
-some, like `md5sum`, do not, even though they provide functionality that can still be
-useful in these contexts.
+some, like `md5sum`, do not, even though they could otherwise be useful in these
+contexts.
 
-`xtemp` acts as an adapter, bridging the gap between stream processing and file-based
-tools that don't fit naturally into that paradigm.
+`xtemp` acts as an adapter allowing file-based batch-processing tools to be used in
+line-based stream-processing pipelines.
 
 ## Usage
 ```
@@ -27,7 +27,7 @@ Options:
   -V, --version                  Print version
 ```
 
-## Example: Calculating hashes line-by-line
+## Example: calculating hashes line-by-line
 If you pipe multiple lines to `md5sum`, it treats them all as a single message and
 outputs just one hash:
 ```bash
