@@ -23,6 +23,8 @@ Options:
                                  as arguments to the command
   -J, --replstr <REPLSTR>        Replacement string for tempfile arguments. If not
                                  specified, tempfiles are appended as trailing arguments
+      --keep-newlines            Keep newlines when writing lines to tempfiles (default:
+                                 strip newlines)
   -h, --help                     Print help
   -V, --version                  Print version
 ```
@@ -38,25 +40,25 @@ f47c75614087a8dd938ba4acff252494  -
 If you want to generate an MD5 for each line, you have to resort to spawning a
 new process for each line of input:
 ```bash
-$ echo -e "foo\nbar" | while read line; do echo "$line" | md5sum; done
-d3b07384d113edec49eaa6238ad5ff00  -
-c157a79031e1c40f85931829bc5fc552  -
+$ echo -e "foo\nbar" | while read line; do printf "$line" | md5sum; done
+acbd18db4cc2f85cedef654fccc4a4d8  -
+37b51d194a7513e45b56f6524f2d51f2  -
 ```
 
 But `md5sum` _is_ capable of calculating multiple hashes in one execution; you just
 have to provide the inputs in separate files:
 ```bash
-$ echo foo > foo.txt; echo bar > bar.txt
+$ printf foo > foo.txt; printf bar > bar.txt
 $ md5sum foo.txt bar.txt
-d3b07384d113edec49eaa6238ad5ff00  foo.txt
-c157a79031e1c40f85931829bc5fc552  bar.txt
+acbd18db4cc2f85cedef654fccc4a4d8  foo.txt
+37b51d194a7513e45b56f6524f2d51f2  bar.txt
 ```
 
 `xtemp` does this for you, using a pool of temporary files behind the scenes:
 ```bash
 $ echo -e "foo\nbar" | xtemp md5sum
-d3b07384d113edec49eaa6238ad5ff00  /tmp/.tmpFUVzUN
-c157a79031e1c40f85931829bc5fc552  /tmp/.tmpFUVzUN
+acbd18db4cc2f85cedef654fccc4a4d8  /tmp/.tmpn6rIRI
+37b51d194a7513e45b56f6524f2d51f2  /tmp/.tmpnJk5rQ
 ```
 
 ### Performance
@@ -73,10 +75,9 @@ user    0m0.165s
 sys     0m0.676s
 
 # Spawning a process per line
-$ time sh -c 'while read line; do echo "$line" | md5sum; done' < sample.10k.txt >/dev/null
+$ time sh -c 'while read line; do printf "$line" | md5sum; done' < sample.10k.txt >/dev/null
 
-real    0m12.828s
-user    0m9.306s
-sys     0m3.309s
+real    0m13.860s
+user    0m9.764s
+sys     0m3.828s
 ```
-

@@ -20,6 +20,10 @@ struct Args {
     #[arg(short = 'J', long)]
     replstr: Option<String>,
 
+    /// Keep newlines when writing lines to tempfiles (default: strip newlines)
+    #[arg(long)]
+    keep_newlines: bool,
+
     /// Command to execute with tempfile arguments
     command: Vec<String>,
 }
@@ -98,7 +102,11 @@ fn run(args: Args) -> Result<()> {
             // TODO DRY
             file.set_len(0).map_err(|e| XtempError::FailedToWrite(e))?;
             file.seek(SeekFrom::Start(0)).map_err(|e| XtempError::FailedToWrite(e))?;
-            writeln!(file, "{}", line).map_err(|e| XtempError::FailedToWrite(e))?;
+            if args.keep_newlines {
+                writeln!(file, "{}", line).map_err(|e| XtempError::FailedToWrite(e))?;
+            } else {
+                write!(file, "{}", line).map_err(|e| XtempError::FailedToWrite(e))?;
+            }
             file.flush().map_err(|e| XtempError::FailedToWrite(e))?;
             file_paths.push(tmpfile.path().to_path_buf());
         }
