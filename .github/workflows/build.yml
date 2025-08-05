@@ -13,8 +13,8 @@ env:
 
 jobs:
   build:
-    name: Build for ${{ matrix.target }}
-    runs-on: ubuntu-latest
+    name: ${{ matrix.job.target }} (${{ matrix.job.os }})
+    runs-on: ${{ matrix.job.os }}
     strategy:
       matrix:
         job:
@@ -32,15 +32,24 @@ jobs:
           - { target: x86_64-unknown-linux-musl   , os: ubuntu-latest, dpkg_arch: musl-linux-amd64, use-cross: true }
 
     steps:
-    - uses: actions/checkout@v4
+    - name: Checkout source code
+      uses: actions/checkout@v4
+
+    - name: Install prerequisites
+      shell: bash
+      run: |
+        case ${{ matrix.job.target }} in
+          arm-unknown-linux-*) sudo apt-get -y update ; sudo apt-get -y install gcc-arm-linux-gnueabihf ;;
+          aarch64-unknown-linux-gnu) sudo apt-get -y update ; sudo apt-get -y install gcc-aarch64-linux-gnu ;;
+        esac
 
     - name: Install Rust
       uses: dtolnay/rust-toolchain@stable
       with:
-        targets: ${{ matrix.target }}
+        targets: ${{ matrix.job.target }}
 
     - name: Install cross
-      if: matrix.use-cross
+      if: matrix.job.use-cross
       uses: taiki-e/install-action@v2
       with:
         tool: cross
@@ -52,20 +61,20 @@ jobs:
           ~/.cargo/registry
           ~/.cargo/git
           target
-        key: ${{ runner.os }}-cargo-${{ matrix.target }}-${{ hashFiles('**/Cargo.lock') }}
+        key: ${{ runner.os }}-cargo-${{ matrix.job.target }}-${{ hashFiles('**/Cargo.lock') }}
 
     - name: Build
-      run: ${{ matrix.use-cross && 'cross' || 'cargo' }} build --release --target ${{ matrix.target }}
+      run: ${{ matrix.job.use-cross && 'cross' || 'cargo' }} build --release --target ${{ matrix.job.target }}
 
     - name: Prepare artifact name
       shell: bash
       run: |
-        if [[ "${{ matrix.target }}" == *"windows"* ]]; then
-          echo "ARTIFACT_NAME=xtemp-${{ matrix.target }}.exe" >> $GITHUB_ENV
-          echo "BINARY_PATH=target/${{ matrix.target }}/release/xtemp.exe" >> $GITHUB_ENV
+        if [[ "${{ matrix.job.target }}" == *"windows"* ]]; then
+          echo "ARTIFACT_NAME=xtemp-${{ matrix.job.target }}.exe" >> $GITHUB_ENV
+          echo "BINARY_PATH=target/${{ matrix.job.target }}/release/xtemp.exe" >> $GITHUB_ENV
         else
-          echo "ARTIFACT_NAME=xtemp-${{ matrix.target }}" >> $GITHUB_ENV
-          echo "BINARY_PATH=target/${{ matrix.target }}/release/xtemp" >> $GITHUB_ENV
+          echo "ARTIFACT_NAME=xtemp-${{ matrix.job.target }}" >> $GITHUB_ENV
+          echo "BINARY_PATH=target/${{ matrix.job.target }}/release/xtemp" >> $GITHUB_ENV
         fi
 
     - name: Upload artifact
