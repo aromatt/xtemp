@@ -1,17 +1,14 @@
 # xtemp
-Like `xargs`, but for utilities that can process batches of items only if they are
-provided as files, e.g. `md5sum`.
-
-`xtemp` copies items from stdin to a pool of temporary files in batches, invoking the
-provided command for each batch.
+`xtemp` is a command-line utility that temporarily materializes stdin lines as files
+so that tools like `md5sum` can be used more efficiently in shell pipelines.
 
 ## Purpose
-Many Unix utilities operate naturally over streams of independent records (e.g.
-`sed`, `grep`). But some, like `wc` and `md5sum`, do not, even though they
-provide functionality that can still be useful in these contexts.
+Many Unix utilities operate naturally over streams of items (e.g. `sed`, `grep`). But
+some, like `md5sum`, do not, even though they provide functionality that can still be
+useful in these contexts.
 
-`xtemp` acts as an adapter for these tools, allowing them to be used more efficiently
-in pipelines.
+`xtemp` acts as an adapter, bridging the gap between stream processing and file-based
+tools that don't fit naturally into that paradigm.
 
 ## Usage
 ```
@@ -82,3 +79,4 @@ real    0m12.828s
 user    0m9.306s
 sys     0m3.309s
 ```
+
