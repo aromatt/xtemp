@@ -9,14 +9,23 @@ use tempfile::NamedTempFile;
 use nix::sys::resource::{getrlimit, Resource};
 
 #[derive(Parser, Debug)]
-#[command(author, version, about)]
+#[command(
+    author,
+    version,
+    about,
+    help_template = "\
+{before-help}{name} {version}
+{author-with-newline}
+{about-with-newline}
+{usage-heading} {usage}\n
+{all-args}{after-help}
+")]
 struct Args {
-    /// Number of lines per batch. xtemp will write batch_size lines to batch_size tempfiles,
-    /// and pass those tempfiles as arguments to the command.
+    /// Number of lines per batch (size of tempfile pool)
     #[arg(short = 'n', long)]
     batch_size: Option<usize>,
 
-    /// Replacement string for tempfile arguments. If not specified, tempfiles are appended as trailing arguments.
+    /// Replacement string for tempfile arguments (if not specified, tempfiles are appended as trailing arguments)
     #[arg(short = 'J', long)]
     replstr: Option<String>,
 

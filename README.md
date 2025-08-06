@@ -7,8 +7,12 @@ Many Unix utilities operate naturally over streams of items (e.g. `sed`, `grep`)
 some, like `md5sum`, do not, even though they could otherwise be useful in these
 contexts.
 
-`xtemp` acts as an adapter allowing file-based batch-processing tools to be used in
-line-based stream-processing pipelines.
+`xtemp` acts as an adapter allowing file-batch processors to be used in line-based
+stream-processing pipelines.
+
+Under the hood, `xtemp` opens a pool of temporary files, then repeatedly executes the
+provided command in batches, passing the set of temporary files as arguments each
+time.
 
 ## Usage
 ```
@@ -29,7 +33,7 @@ Options:
   -V, --version                  Print version
 ```
 
-## Example: calculating hashes line-by-line
+## Illustrative example: calculating hashes line-by-line
 If you pipe multiple lines to `md5sum`, it treats them all as a single message and
 outputs just one hash:
 ```bash
