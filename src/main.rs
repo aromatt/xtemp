@@ -33,6 +33,11 @@ struct Args {
     #[arg(long)]
     keep_newlines: bool,
 
+    /// Instead of passing all tempfiles as arguments, pass a single file containing a list of the
+    /// tempfile paths
+    #[arg(short = 'l', long)]
+    list: bool,
+
     /// Command to execute with tempfile arguments
     command: Vec<String>,
 }
@@ -66,6 +71,33 @@ fn get_max_open_files() -> usize {
     }
 }
 
+/// Replaces replstr with replacements, returning the full literal command.
+fn resolve_replstr(
+    command: &[String],
+    replstr: Option<&str>,
+    replacements: Vec<String>,
+) -> Vec<String> {
+    let mut cmd_args = Vec::new();
+    match replstr {
+        Some(replstr) => {
+            // Replace exact matches of replstr with all replacements
+            for arg in command {
+                if arg == replstr {
+                    cmd_args.extend(replacements.clone());
+                } else {
+                    cmd_args.push(arg.clone());
+                }
+            }
+        }
+        None => {
+            // Append all replacements as trailing arguments
+            cmd_args.extend(command.iter().cloned());
+            cmd_args.extend(replacements);
+        }
+    }
+    cmd_args
+}
+
 fn main() {
     let args = Args::parse();
     let result = run(args);
@@ -96,16 +128,24 @@ fn run(args: Args) -> Result<()> {
         .collect::<std::result::Result<_, _>>()
         .map_err(|e| XtempError::InvalidUtf8(e))?;
 
-    let mut temp_pool: Vec<NamedTempFile> = (0..batch_size)
+    // Create tempfile pool
+    let mut pool: Vec<NamedTempFile> = (0..batch_size)
         .map(|_| NamedTempFile::new().map_err(|e| XtempError::FailedToWrite(e)))
         .collect::<Result<_>>()?;
+
+    // Maybe create list file
+    let mut list = if args.list {
+        Some(NamedTempFile::new().map_err(|e| XtempError::FailedToWrite(e))?)
+    } else {
+        None
+    };
 
     for chunk in lines.chunks(batch_size) {
         let mut file_paths = Vec::new();
 
         // Reuse temp files from the pool
         for (i, line) in chunk.iter().enumerate() {
-            let tmpfile = &mut temp_pool[i];
+            let tmpfile = &mut pool[i];
             let file = tmpfile.as_file_mut();
 
             // TODO DRY
@@ -121,35 +161,32 @@ fn run(args: Args) -> Result<()> {
         }
 
         // Build command with file arguments
-        let mut cmd_args = Vec::new();
-
-        match &args.replstr {
-            Some(replstr) => {
-                // Replace exact matches of replstr with space-separated temp file paths
-                for arg in &args.command {
-                    if arg == replstr {
-                        let files_str = file_paths
-                            .iter()
-                            .map(|p| escape(p.to_string_lossy()))
-                            .collect::<Vec<_>>()
-                            .join(" ");
-                        cmd_args.push(files_str);
-                    } else {
-                        cmd_args.push(arg.clone());
+        let tempfile_args = match list {
+            Some(ref mut list_tmpfile) => {
+                // Write temp file paths to the list file
+                let file = list_tmpfile.as_file_mut();
+                file.set_len(0).map_err(|e| XtempError::FailedToWrite(e))?;
+                file.seek(SeekFrom::Start(0)).map_err(|e| XtempError::FailedToWrite(e))?;
+                for path in &file_paths {
+                    writeln!(file, "{}", path.display())
+                        .map_err(|e| XtempError::FailedToWrite(e))?;
                     }
-                }
+                file.flush().map_err(|e| XtempError::FailedToWrite(e))?;
+                vec![escape(list_tmpfile.path().to_string_lossy()).to_string()]
             }
             None => {
-                // Append file paths as trailing arguments
-                cmd_args.extend(args.command.iter().cloned());
-                for path in &file_paths {
-                    cmd_args.push(escape(path.to_string_lossy()).to_string());
-                }
+                // Pass temp files directly
+                file_paths
+                    .iter()
+                    .map(|p| escape(p.to_string_lossy()).to_string())
+                    .collect()
             }
-        }
+        };
 
-        let mut child = Command::new(&cmd_args[0])
-            .args(&cmd_args[1..])
+        let full_cmd = resolve_replstr(&args.command, args.replstr.as_deref(), tempfile_args);
+
+        let mut child = Command::new(&full_cmd[0])
+            .args(&full_cmd[1..])
             .stdout(Stdio::piped())
             .spawn()
             .map_err(|e| XtempError::SubprocessFailed(e.to_string()))?;

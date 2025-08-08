@@ -22,13 +22,14 @@ Arguments:
   [COMMAND]...  Command to execute with tempfile arguments
 
 Options:
-  -n, --batch-size <BATCH_SIZE>  Number of lines per batch. xtemp will write batch_size
-                                 lines to batch_size tempfiles, and pass those tempfiles
-                                 as arguments to the command
-  -J, --replstr <REPLSTR>        Replacement string for tempfile arguments. If not
-                                 specified, tempfiles are appended as trailing arguments
-      --keep-newlines            Keep newlines when writing lines to tempfiles (default:
-                                 strip newlines)
+  -n, --batch-size <BATCH_SIZE>  Number of lines per batch (size of tempfile pool)
+  -J, --replstr <REPLSTR>        Replacement string for tempfile arguments (if not specified,
+                                 tempfiles are appended as
+                                 trailing arguments)
+      --keep-newlines            Keep newlines when writing lines to tempfiles (default: strip
+                                 newlines)
+  -l, --list                     Instead of passing all tempfiles as arguments, pass a single file
+                                 containing a list of the tempfile paths
   -h, --help                     Print help
   -V, --version                  Print version
 ```
