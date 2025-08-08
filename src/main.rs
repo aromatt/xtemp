@@ -3,7 +3,7 @@ use std::process;
 use std::fmt;
 use std::process::Stdio;
 use shell_escape::escape;
-use std::io::{self, BufRead, BufReader, Write, Seek, SeekFrom};
+use std::io::{self, BufRead, Write, Seek, SeekFrom};
 use std::process::Command;
 use tempfile::NamedTempFile;
 use nix::sys::resource::{getrlimit, Resource};
@@ -187,19 +187,10 @@ fn run(args: Args) -> Result<()> {
 
         let mut child = Command::new(&full_cmd[0])
             .args(&full_cmd[1..])
-            .stdout(Stdio::piped())
+            .stdout(Stdio::inherit())
+            .stderr(Stdio::inherit())
             .spawn()
             .map_err(|e| XtempError::SubprocessFailed(e.to_string()))?;
-
-        let stdout = child.stdout.take().ok_or_else(|| {
-            XtempError::SubprocessFailed("subprocess has no stdout".into())
-        })?;
-
-        let reader = BufReader::new(stdout);
-        for (_, line) in chunk.iter().zip(reader.lines()) {
-            let line = line.map_err(|e| XtempError::InvalidUtf8(e))?;
-            println!("{}", line);
-        }
 
         let status = child.wait().map_err(|_| {
             XtempError::SubprocessFailed("failed to wait for command".into())
